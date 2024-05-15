@@ -1,11 +1,10 @@
-# CS-552 MNLP 2024 Project M2 & M3 Description (Code Part)
+# EPFL Deep Learning 2024 Project - Robust Hate Speech Detection for LLMs
 
-## Project Description (Code Part)
+## Project Description
 
-- In this project, you will be working on developing large language models (LLMs) capable of communicating with humans and assisting with various tasks. You will be exploring various frontier methods to apply LLMs in real-world applications, including Direct Preference Optimization (DPO), Retrieval-Augmented Generation (RAG), and model quantization.
-In Milestone 2, you will implement the alignment method Direct Preference Optimization (DPO), which is an effective way to align a foundation LLM with human preferences.
-- In Milestone 3, you will continue to improve your DPO training pipeline to adapt your LLM model to support multiple-choice question answering (MCQA) tasks. Next, you will implement either **Retrieval-Augmented Generation (RAG)** to enhance the model's reasoning with external knowledge or **model quantization** to get lightweight and efficient models for easier real-world deployment. **Groups with 4 people must implement both RAG and quantization. Groups with 3 people can pick one of the directions. Every group must complete the development of the MCQA DPO model.**
-- For the complete project description (including other deliverables) in addition to the code implementations, please refer to the [official document](https://docs.google.com/document/d/1SP8SCHPOZZGEhs2ay-38FjedRE1bS9Q99VJb28eHoYk/edit?usp=sharing)
+- For this project, we will try to use SOTA techniques to improve LLMs hate speech detection accuracy.
+- First we will fine-tune our baseline LLM for the task, then use DPO to align model according to human preferences.
+- Finally, we will use RAG to improve our model's performance even further. 
 
 ## Codebase File Structure
 
