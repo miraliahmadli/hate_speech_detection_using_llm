@@ -8,6 +8,8 @@ from peft import PeftModel
 '''
 SETUP EXAMPLE:
 
+https://colab.research.google.com/github/mlabonne/llm-course/blob/main/Fine_tune_a_Mistral_7b_model_with_DPO.ipynb#scrollTo=LAEUZFjvlJOv
+
 # LoRA configuration
 peft_config = LoraConfig(
     r=16,
@@ -58,7 +60,7 @@ def dpo_pipeline(model,
                  beta=0.1,
                  max_prompt_length=1024,
                  max_length=1536,
-                 ckpt_path="final_dpo_checkpoint",
+                 ckpt_path="./checkpoints/final_dpo_checkpoint",
                  **kwargs):
     # Create DPO trainer
     dpo_trainer = DPOTrainer(
@@ -85,9 +87,9 @@ def dpo_pipeline(model,
     torch.cuda.empty_cache()
 
 
-def merge_and_push(model_name, new_model_path, hf_token):
+def merge_and_push(model_name, dpo_path, new_model_path, hf_token):
     # Reload model in FP16 (instead of NF4)
-    base_model = AutoModelForCausalLM.from_pretrained(
+    base_model = AutoModelForSequenceClassification.from_pretrained(
         model_name,
         return_dict=True,
         torch_dtype=torch.float16,
@@ -95,7 +97,7 @@ def merge_and_push(model_name, new_model_path, hf_token):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     # Merge base model with the adapter
-    model = PeftModel.from_pretrained(base_model, "final_checkpoint")
+    model = PeftModel.from_pretrained(base_model, dpo_path)
     model = model.merge_and_unload()
 
     # Save model and tokenizer
