@@ -2,8 +2,42 @@ import gc
 import torch
 
 from trl import DPOTrainer
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from peft import PeftModel
+
+'''
+DATASET FORMAT
+
+dpo_dataset_dict = {
+    "prompt": [
+        "hello",
+        "how are you",
+        "What is your name?",
+        "What is your name?",
+        "Which is the best programming language?",
+        "Which is the best programming language?",
+        "Which is the best programming language?",
+    ],
+    "chosen": [
+        "hi nice to meet you",
+        "I am fine",
+        "My name is Mary",
+        "My name is Mary",
+        "Python",
+        "Python",
+        "Java",
+    ],
+    "rejected": [
+        "leave me alone",
+        "I am not fine",
+        "Whats it to you?",
+        "I dont have a name",
+        "Javascript",
+        "C++",
+        "C++",
+    ],
+}
+'''
 
 '''
 SETUP EXAMPLE:

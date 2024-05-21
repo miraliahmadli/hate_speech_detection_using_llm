@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
-from dataset import HateSpeechDataset
+from dataloaders.sft_dataset import HateSpeechDataset
 
 
 def eval(model, test_dataloader, device):
