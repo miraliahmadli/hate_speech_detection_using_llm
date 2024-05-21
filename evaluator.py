@@ -18,7 +18,7 @@ from models.model_dpo import AutoDPOModelForCausalLM, AutoDPOModelForSeq2SeqLM
 accuracy_metric = evaluate.load("accuracy")
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger("mnlp-2024-auto-evaluator")
+logger = logging.getLogger("hate-speech-auto-evaluator")
 
 def repository_check():
     """
@@ -295,69 +295,6 @@ class RAGModelEvaluator():
         """
         rag_accuracy = self.rag_dpo_evaluator.scoring_mcqa(test_dataloader)
         return rag_accuracy
-
-class QuantizedEvaluator():
-    def __init__(
-        self,
-        policy_model_path: str=None,
-        quantized_model_path: str=None,
-        quantized_model_args: dict={}
-    ):
-        assert policy_model_path is not None, "You must provide the path to the policy model!"
-        assert quantized_model_path is not None, "You must provide the path to the quantized model!"
-
-        self.policy_model_path = policy_model_path
-        self.quantized_model_path = quantized_model_path
-        if quantized_model_args is None:
-            self.quantized_model_args = {}
-        else:
-            self.quantized_model_args = quantized_model_args
-
-        self.quantized_dpo_evaluator = DPOModelEvaluator(
-            policy_model_path=quantized_model_path,
-            dpo_model_args=quantized_model_args
-        )
-
-    def scoring_quantization(self, test_dataloader: DataLoader):
-        """Computing the accuracy of the multiple-choice question predictions from a quantized DPO model.
-
-        Args:
-            test_dataloader (DataLoader): A pytorch dataloader containing the test MCQA data.
-
-        Returns:
-            quantized_accuracy (float): The mcqa accuracy of the quantized policy model.
-        """
-        quantized_accuracy = self.quantized_dpo_evaluator.scoring_mcqa(test_dataloader)
-        return quantized_accuracy
-
-    def check_model_quantization(self):
-        """Check if the model is quantized by comparing the model sizes (orig vs. quantized) on disk.
-
-        Returns:
-            compessed_model_size_on_disk (int): The size of the quantized model on disk.
-            orig_model_size_on_disk (int): The size of the original model on disk.
-            quantized (bool): A boolean indicating if the model is quantized.
-        """
-        quantized = False
-        quantized_checkpoints = glob.glob(f"./{quantized_model_path}/*.bin")
-        if len(quantized_checkpoints) == 0:
-            quantized_checkpoints = glob.glob(f"./{quantized_model_path}/*.safetensors")
-        if len(quantized_checkpoints) == 0:
-            quantized_checkpoints = glob.glob(f"./{quantized_model_path}/*.pt")
-
-        quantized_model_size_on_disk = 0
-        for name in quantized_checkpoints:
-            quantized_model_size_on_disk += os.path.getsize(name)
-
-        orig_checkpoints = glob.glob(f"{self.policy_model_path}/*.bin")
-        orig_model_size_on_disk = 0
-        for name in orig_checkpoints:
-            orig_model_size_on_disk += os.path.getsize(name)
-
-        if quantized_model_size_on_disk < orig_model_size_on_disk:
-            quantized = True
-
-        return quantized_model_size_on_disk, orig_model_size_on_disk, quantized
 
 if __name__ == '__main__':
     # Basic repository check to ensure the submission is correct
