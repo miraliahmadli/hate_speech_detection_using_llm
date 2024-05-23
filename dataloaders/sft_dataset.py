@@ -2,9 +2,9 @@ import torch
 from torch.utils.data import Dataset
 
 class HateSpeechDataset(Dataset):
-    def __init__(self, texts, labels, tokenizer, max_length=512, instruct=False):
-        self.texts = texts
-        self.labels = labels
+    def __init__(self, data, tokenizer, max_length=512, instruct=False):
+        self.texts = data['text']
+        self.labels = data['label']
         self.tokenizer = tokenizer
         self.max_length = max_length
         if instruct:
@@ -23,7 +23,7 @@ class HateSpeechDataset(Dataset):
 
         # Format instruction
         message = {"role": "user", "content": text}
-        text = self.tokenizer.apply_chat_template([message],
+        text = self.system + self.tokenizer.apply_chat_template([message],
                                                   tokenize=False, 
                                                   add_generation_prompt=True)
 
