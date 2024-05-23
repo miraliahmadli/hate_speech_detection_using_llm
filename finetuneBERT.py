@@ -1,14 +1,15 @@
 import argparse
 import random
 import torch
-from datasets import load_dataset, load_metric
+from datasets import load_dataset, Dataset
 from transformers import BertTokenizer, BertForSequenceClassification, AdamW, get_linear_schedule_with_warmup
 from torch.utils.data import random_split, DataLoader, RandomSampler, SequentialSampler
 import math
 import numpy as np
 import time
 import datetime
-
+import pandas as pd
+from toxigen import label_annotations
 
 # Function to calculate the accuracy of our predictions vs labels
 def flat_accuracy(preds, labels):
@@ -17,12 +18,13 @@ def flat_accuracy(preds, labels):
     return np.sum(pred_flat == labels_flat) / len(labels_flat)
 
 
-def preprocess_function(examples):
-    max_seq_length = min(128, tokenizer.model_max_length)
-    if sentence2_key is None:
-        return tokenizer(examples[sentence1_key], truncation=True, padding='max_length', max_length=max_seq_length)
-    return tokenizer(examples[sentence1_key], examples[sentence2_key], truncation=True, padding='max_length', max_length=max_seq_length)
+# def preprocess_function(examples):
+#     max_seq_length = min(TG_max_length, tokenizer.model_max_length)
+#     return tokenizer(examples[sentence], truncation=True, padding='max_length', max_length=max_seq_length)
 
+def eval_preprocess_function(examples):
+    max_seq_length = min(TG_max_length, tokenizer.model_max_length)
+    return tokenizer(examples['text'], truncation=True, padding='max_length', max_length=max_seq_length)
 
 def initialize(args, seed: int):
     random.seed(seed)
@@ -72,10 +74,6 @@ def train(epochs):
         # Reset the total loss for this epoch.
         total_train_loss = 0
 
-        # Put the model into training mode. Don't be mislead--the call to
-        # `train` just changes the *mode*, it doesn't *perform* the training.
-        # `dropout` and `batchnorm` layers behave differently during training
-        # vs. test (source: https://stackoverflow.com/questions/51433378/what-does-model-train-do-in-pytorch)
         model.train()
 
         # For each batch of training data...
@@ -90,7 +88,6 @@ def train(epochs):
                 print('  Batch {:>5,}  of  {:>5,}.    Elapsed: {:}.'.format(step, len(train_dataloader), elapsed))
 
             # Unpack this training batch from our dataloader.
-            # dict_keys(['sentence1', 'sentence2', 'label', 'idx', 'input_ids', 'token_type_ids', 'attention_mask'])
             b_input_ids = torch.tensor([t['input_ids'] for t in batch]).to(device)
             b_input_mask = torch.tensor([t['attention_mask'] for t in batch]).to(device)
             b_labels = torch.tensor([t['label'] for t in batch]).to(device)
@@ -114,6 +111,7 @@ def train(epochs):
 
             # Update the learning rate.
             scheduler.step()
+            # break
             
         # Calculate the average loss over all of the batches.
         avg_train_loss = total_train_loss / len(train_dataloader)
@@ -124,10 +122,10 @@ def train(epochs):
         print("")
         print("  Average training loss: {0:.2f}".format(avg_train_loss))
         print("  Training epcoh took: {:}".format(training_time))
+        # break
 
     print("")
     print("Training complete!")
-
     print("Total training took {:} (h:mm:ss)".format(format_time(time.time()-total_t0)))
 
 def eval():
@@ -175,11 +173,9 @@ def eval():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--task", default='cola', type=str, help="GLUE tasks")
     parser.add_argument("--epoch", default=3, type=int, help="Epochs")
     args = parser.parse_args()
     return args
-
 
 
 if __name__ == "__main__":
@@ -187,60 +183,65 @@ if __name__ == "__main__":
     # initialize(args, seed)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    actual_task = "mnli" if args.task == "mnli-mm" else args.task
-    dataset = load_dataset("glue", actual_task)
-    metric = load_metric('glue', actual_task)
+    # task = 'toxigen'
+    # TG_dataset = load_dataset("skg/toxigen-data", name="train")
+    # TG = pd.DataFrame(TG_dataset['train'])
     batch_size = 32
     
+    num_labels = 2
+    # model = AutoModelForSequenceClassification.from_pretrained(model_checkpoint, num_labels=num_labels)
+    
+
+    
     task_to_keys = {
-        "cola": ("sentence", None),
-        "mnli": ("premise", "hypothesis"),
-        "mnli-mm": ("premise", "hypothesis"),
-        "mrpc": ("sentence1", "sentence2"),
-        "qnli": ("question", "sentence"),
-        "qqp": ("question1", "question2"),
-        "rte": ("sentence1", "sentence2"),
-        "sst2": ("sentence", None),
-        "stsb": ("sentence1", "sentence2"),
-        "wnli": ("sentence1", "sentence2"),
+        "toxigen": ("generation", "prompt_label"),
+        "toxigen_human": ("text", "label"),
     }
 
-    sentence1_key, sentence2_key = task_to_keys[args.task]
-    sentences1 = dataset['train'][sentence1_key]
-    if sentence2_key is not None:
-        sentences2 = dataset['train'][sentence2_key]
-    labels = dataset['train']['label']
-    
-    num_labels = 3 if args.task.startswith("mnli") else 1 if args.task=="stsb" else 2
-    # model = AutoModelForSequenceClassification.from_pretrained(model_checkpoint, num_labels=num_labels)
-
-    metric_name = "pearson" if args.task == "stsb" else "matthews_correlation" if args.task == "cola" else "accuracy"
-    validation_key = "validation_mismatched" if args.task == "mnli-mm" else "validation_matched" if args.task == "mnli" else "validation"
+    TG_human = load_dataset("skg/toxigen-data", name="annotated")
+    human_train = pd.DataFrame(TG_human["train"])
     
     tokenizer = BertTokenizer.from_pretrained('bert-base-cased') #, do_lower_case=True)
-    encoded_dataset = dataset.map(preprocess_function, batched=False)
+    TG_max_length = human_train['text'].apply(len).max()
     
-    # Calculate the number of samples to include in each set.
-    # train_size = int(0.9 * len(encoded_dataset['train']))
-    # val_size = len(encoded_dataset['train']) - train_size
-
-    # # Divide the dataset by randomly selecting samples.
-    # train_dataset, val_dataset = random_split(encoded_dataset['train'], [train_size, val_size])
+    train_dataset_df = label_annotations(human_train)
+    train_dataset = Dataset.from_pandas(train_dataset_df)
+    train_sentences = train_dataset['text']
+    train_labels = train_dataset['label']
+    train_encoded_dataset = train_dataset.map(eval_preprocess_function, batched=False)
     
     train_dataloader = DataLoader(
-                encoded_dataset['train'],  # The training samples.
-                sampler = RandomSampler(encoded_dataset['train']), # Select batches randomly
-                batch_size = batch_size, # Trains with this batch size.
+                train_encoded_dataset, # The validation samples.
+                sampler = SequentialSampler(train_encoded_dataset), # Pull out batches sequentially.
+                batch_size = batch_size, # Evaluate with this batch size.
                 collate_fn=lambda x: x 
             )
 
     # For validation the order doesn't matter, so we'll just read them sequentially.
-    # validation_dataloader = DataLoader(
-    #             encoded_dataset['train'], # The validation samples.
-    #             sampler = SequentialSampler(encoded_dataset['train']), # Pull out batches sequentially.
-    #             batch_size = batch_size, # Evaluate with this batch size.
-    #             collate_fn=lambda x: x 
-    #         )
+    test_dataloader = DataLoader(
+                train_encoded_dataset, # The validation samples.
+                sampler = SequentialSampler(train_encoded_dataset), # Pull out batches sequentially.
+                batch_size = batch_size, # Evaluate with this batch size.
+                collate_fn=lambda x: x 
+            )
+    
+    
+    TG_human = load_dataset("skg/toxigen-data", name="annotated")
+    human_eval = pd.DataFrame(TG_human["test"])
+    eval_dataset_df = label_annotations(human_eval)
+    eval_dataset = Dataset.from_pandas(eval_dataset_df)
+    eval_sentence, eval_label = task_to_keys['toxigen_human']
+    eval_sentences = eval_dataset[eval_sentence]
+    eval_labels = eval_dataset[eval_label]
+    eval_encoded_dataset = eval_dataset.map(eval_preprocess_function, batched=False)
+
+    # For validation the order doesn't matter, so we'll just read them sequentially.
+    test_dataloader = DataLoader(
+                eval_encoded_dataset, # The validation samples.
+                sampler = SequentialSampler(eval_encoded_dataset), # Pull out batches sequentially.
+                batch_size = batch_size, # Evaluate with this batch size.
+                collate_fn=lambda x: x 
+            )
     
     model = BertForSequenceClassification.from_pretrained(
         "bert-base-cased", # Use the 12-layer BERT model, with an uncased vocab.
@@ -265,50 +266,9 @@ if __name__ == "__main__":
     
     train(args.epoch)
     
-    test_dataloader = DataLoader(
-                encoded_dataset[validation_key], # The validation samples.
-                sampler = SequentialSampler(encoded_dataset[validation_key]), # Pull out batches sequentially.
-                batch_size = batch_size, # Evaluate with this batch size.
-                collate_fn=lambda x: x 
-            )
-    
     predictions, true_labels = eval()
     
     flat_predictions = np.concatenate(predictions, axis=0)
-    # For each sample, pick the label (0 or 1) with the higher score.
-    if args.task != 'stsb':
-        flat_predictions = np.argmax(flat_predictions, axis=1).flatten()
-    # Combine the correct labels for each batch into a single list.
     flat_true_labels = np.concatenate(true_labels, axis=0)
-
-    result = metric.compute(predictions=flat_predictions, references=flat_true_labels)
-    print(result)
-    
-    file_name = './results/result.txt'
-    result_str = str(args.task)
-    result_str += '_epoch' + str(args.epoch) + ': ' +str(result) + '\n'
-    with open(file_name, 'a') as file:
-        file.write(result_str)
-            
-    if args.task == 'mnli':
-        test_dataloader = DataLoader(
-                    encoded_dataset['validation_mismatched'], # The validation samples.
-                    sampler = SequentialSampler(encoded_dataset['validation_mismatched']), # Pull out batches sequentially.
-                    batch_size = batch_size, # Evaluate with this batch size.
-                    collate_fn=lambda x: x 
-                )
-        
-        predictions, true_labels = eval()
-        
-        flat_predictions = np.concatenate(predictions, axis=0)
-        # For each sample, pick the label (0 or 1) with the higher score.
-        flat_predictions = np.argmax(flat_predictions, axis=1).flatten()
-        # Combine the correct labels for each batch into a single list.
-        flat_true_labels = np.concatenate(true_labels, axis=0)
-
-        result = metric.compute(predictions=flat_predictions, references=flat_true_labels)
-        print(result)
-        
-        result_str = str(args.task) + '-mm_' + str(args.optim) + '_epoch' + str(args.epoch) + ': ' +str(result) + '\n'
-        with open(file_name, 'a') as file:
-            file.write(result_str)
+    acc = flat_accuracy(flat_predictions, flat_true_labels)
+    print(acc)
