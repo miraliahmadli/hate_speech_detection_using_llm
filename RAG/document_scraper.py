@@ -7,7 +7,6 @@ def scrape_documents():
         "https://en.wikipedia.org/wiki/Hate_speech",
         "https://plato.stanford.edu/entries/hate-speech/",
         "https://www.un.org/en/hate-speech/understanding-hate-speech/what-is-hate-speech",
-        "https://www.ala.org/advocacy/intfreedom/hate",
         "https://www.rightsforpeace.org/hate-speech",
         "https://transparency.meta.com/policies/community-standards/hate-speech/",
         "https://challengehate.com/what-is-hate-speech/",
