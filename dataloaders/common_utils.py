@@ -112,19 +112,22 @@ def load_and_process_gender_hate_speech_data():
     return train_data, val_data
 
 def load_and_process_cad(dir_path='data/CAD'):
-    train_path = f"{dir_path}/train.csv"
-    dev_path = f"{dir_path}/dev.csv"
-    test_path = f"{dir_path}/test.csv"
-    train_data = pd.read_csv(train_path)
-    dev_data = pd.read_csv(dev_path)
+    train_path = f"{dir_path}/train.tsv"
+    dev_path = f"{dir_path}/dev.tsv"
+    test_path = f"{dir_path}/test.tsv"
+    train_data = pd.read_csv(train_path, sep='\t')
+    dev_data = pd.read_csv(dev_path, sep='\t')
     train_data = pd.concat([train_data, dev_data])
-    test_data = pd.read_csv(test_path)
+    test_data = pd.read_csv(test_path, sep='\t')
     
     train_data.drop(columns=['id'], inplace=True)
     test_data.drop(columns=['id'], inplace=True)
     
     train_data.rename(columns={'labels': 'label'}, inplace=True)
     test_data.rename(columns={'labels': 'label'}, inplace=True)
+    
+    train_data['label'] = (train_data['label'] != 'Neutral').astype(int)
+    test_data['label'] = (test_data['label'] != 'Neutral').astype(int)
 
     train_data = Dataset.from_pandas(train_data)
     val_data = Dataset.from_pandas(test_data)
