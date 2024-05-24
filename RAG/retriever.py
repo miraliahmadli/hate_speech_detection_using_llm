@@ -4,6 +4,7 @@ from llama_index.core.schema import NodeWithScore, TextNode
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.retrievers import BaseRetriever
 
+
 class VectorDBRetriever(BaseRetriever):
     def __init__(
         self,
@@ -27,7 +28,7 @@ class VectorDBRetriever(BaseRetriever):
         """
         text_chunks = []
         doc_idxs = []
-        text_parser = SentenceSplitter(chunk_size=1024)
+        text_parser = SentenceSplitter(chunk_size=512)
         for doc_idx, doc in enumerate(documents):
             cur_text_chunks = text_parser.split_text(doc.text)
             text_chunks.extend(cur_text_chunks)
@@ -63,3 +64,15 @@ class VectorDBRetriever(BaseRetriever):
 
         return nodes_with_scores
 
+    def get_added_message(self, query_bundle: QueryBundle) -> str:
+        node_with_scores = self._retrieve(query_bundle)
+
+        start = "You are given the following context:"
+        context = ""
+        for u in node_with_scores:
+            cur_node = u.node
+            context += cur_node.get_content()
+        context += '\n'
+        question = "Is the following hate speech: "
+
+        return start + context + question
