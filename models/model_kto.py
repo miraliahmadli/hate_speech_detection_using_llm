@@ -1,9 +1,17 @@
 import gc
+import numpy as np
 import torch
+import evaluate
+metric = evaluate.load('accuracy')
 
 from trl import KTOTrainer
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
+from transformers import AutoModel, AutoModelForCausalLM, AutoModelForSequenceClassification, AutoTokenizer
+from transformers import DistilBertTokenizer, DistilBertModel
+
 from peft import PeftModel
+from datasets import Dataset
+
+from dataloaders.kto_dataset import HateSpeechKTODataset
 
 '''
 DATASET FORMAT
@@ -98,26 +106,35 @@ kto_trainer = KTOTrainer(
 )
 '''
 
-def kto_pipeline(model, 
+def compute_metrics(eval_pred):
+    predictions, labels = eval_pred
+    # predictions = np.argmax(predictions, axis=-1)
+    return metric.compute(predictions=predictions, references=labels)
+
+def kto_pipeline(model_name, 
                  training_args,
-                 dataset,
-                 tokenizer,
+                 train_set,
+                 val_set,
                  peft_config,
-                 beta=0.1,
-                 max_prompt_length=1024,
-                 max_length=1536,
-                 ckpt_path="./checkpoints/final_kto_checkpoint",
-                 **kwargs):
+                 ckpt_path="./checkpoints/final_kto_checkpoint"):
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    gc.collect()
+    torch.cuda.empty_cache()
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer.pad_token = tokenizer.eos_token
+    model = AutoModelForCausalLM.from_pretrained(model_name)
+    model.to(device)
+
     # Create KTRO trainer
     kto_trainer = KTOTrainer(
         model,
         args=training_args,
-        train_dataset=dataset,
+        train_dataset=train_set,
+        eval_dataset=val_set,
         tokenizer=tokenizer,
         peft_config=peft_config,
-        beta=0.1,
-        max_prompt_length=1024,
-        max_length=1536,
+        # compute_metrics=compute_metrics,
     )
 
     # Fine-tune model with KTO

@@ -1,8 +1,8 @@
 import torch
 from torch.utils.data import Dataset
 
-def filter_none_text(example):
-    return example['text'] is not None
+from dataloaders.common_utils import filter_none_text
+
 
 class HateSpeechDataset(Dataset):
     def __init__(self, data, tokenizer, max_length=512, instruct=False):

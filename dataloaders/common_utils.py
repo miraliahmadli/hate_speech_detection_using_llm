@@ -2,53 +2,11 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from datasets import load_dataset, Dataset
 
-def alignment_dpo_format(tokenizer, samples):
-    # Format system
-    if len(samples['system']) > 0:
-        message = {"role": "system", "content": samples['system']}
-        system = tokenizer.apply_chat_template([message], tokenize=False)
-    else:
-        system = ""
 
-    # Format instruction
-    message = {"role": "user", "content": samples['text']}
-    prompt = tokenizer.apply_chat_template([message], tokenize=False, add_generation_prompt=True)
+def filter_none_text(example, key='text'):
+    return example[key] is not None
 
-    # Format chosen answer
-    chosen = samples['chosen'] + "<|im_end|>\n"
-
-    # Format rejected answer
-    rejected = samples['rejected'] + "<|im_end|>\n"
-
-    return {
-        "prompt": system + prompt,
-        "chosen": chosen,
-        "rejected": rejected,
-    }
-
-def alignment_kto_format(tokenizer, samples):
-     # Format system
-    if len(samples['system']) > 0:
-        message = {"role": "system", "content": samples['system']}
-        system = tokenizer.apply_chat_template([message], tokenize=False)
-    else:
-        system = ""
-
-    # Format instruction
-    message = {"role": "user", "content": samples['text']}
-    prompt = tokenizer.apply_chat_template([message], 
-                                           tokenize=False, 
-                                           add_generation_prompt=True)
-
-    completion = samples['completion'] + "<|im_end|>\n"
-    return {
-        "prompt": system + prompt,
-        "completion": completion,
-        "label": samples["label"],
-    }
-
-
-def load_and_process_toxigen():
+def load_and_process_toxigen(kto=False, test_size=0.1):
     def label_annotations(annotated):
         # Annotations should be the annotated dataset
         label = ((annotated.toxicity_ai + annotated.toxicity_human) > 5.5).astype(int)
@@ -59,6 +17,18 @@ def load_and_process_toxigen():
 
     TG = load_dataset("skg/toxigen-data", name="train")
     tg_dataset = TG["train"].to_pandas()
+    tg_dataset = tg_dataset.dropna()
+    if kto:
+        tg_dataset = tg_dataset[["prompt", "prompt_label", "generation"]]
+        tg_dataset.rename(columns={"prompt_label": "label", "generation":"completion"}, inplace=True)
+        tg_dataset['label'] = tg_dataset['label'].astype(bool)
+        tg_dataset = tg_dataset.sample(frac=1, random_state=42).reset_index(drop=True)
+        train_data, val_data = train_test_split(tg_dataset, test_size=test_size)
+        train_data = Dataset.from_pandas(train_data)
+        val_data = Dataset.from_pandas(val_data)
+
+        return train_data, val_data
+
     tg_dataset = tg_dataset[["prompt_label", "generation"]]
     tg_dataset.rename(columns={"prompt_label": "label", "generation":"text"}, inplace=True)
     tg_train_data = Dataset.from_pandas(tg_dataset)
@@ -67,7 +37,7 @@ def load_and_process_toxigen():
     tg_human_eval = pd.DataFrame(tg_test_dateset["test"])
     tg_eval_dataset_df = label_annotations(tg_human_eval)
     tg_test_data = Dataset.from_pandas(tg_eval_dataset_df)
-    
+
     return tg_train_data, tg_test_data
 
 
@@ -76,12 +46,13 @@ def load_and_process_twitter_data(test_size=0.2):
     trainval_data = dataset['train'].to_pandas()
     trainval_data.rename(columns={'tweet': 'text'}, inplace=True)
     trainval_data['label'] = trainval_data['label'].astype(int)
+    trainval_data = trainval_data.dropna()
+    trainval_data = trainval_data.sample(frac=1, random_state=42).reset_index(drop=True)
     train_data, val_data = train_test_split(trainval_data, test_size=test_size)
     train_data = Dataset.from_pandas(train_data)
     val_data = Dataset.from_pandas(val_data)
 
     return train_data, val_data
-
 
 def load_and_process_berkeley_data(test_size=0.2):
     dataset = load_dataset("ucberkeley-dlab/measuring-hate-speech")
@@ -90,6 +61,8 @@ def load_and_process_berkeley_data(test_size=0.2):
     trainval_data.rename(columns={'hate_speech_score': 'label'}, inplace=True)
     trainval_data['label'] = (trainval_data['label'] > 0.5).astype(int)
 
+    trainval_data = trainval_data.dropna()
+    trainval_data = trainval_data.sample(frac=1, random_state=42).reset_index(drop=True)
     train_data, val_data = train_test_split(trainval_data, test_size=test_size)
     train_data = Dataset.from_pandas(train_data)
     val_data = Dataset.from_pandas(val_data)
@@ -107,6 +80,8 @@ def load_and_process_gender_hate_speech_data():
     val.rename(columns={'Text': 'text', 'Label': 'label'}, inplace=True)
     val['label'] = (val['label'] > 0.5).astype(int)
 
+    train = train.dropna()
+    val = val.dropna()
     train_data = Dataset.from_pandas(train)
     val_data = Dataset.from_pandas(val)
     return train_data, val_data
@@ -128,6 +103,9 @@ def load_and_process_cad(dir_path='data/CAD'):
     
     train_data['label'] = (train_data['label'] != 'Neutral').astype(int)
     test_data['label'] = (test_data['label'] != 'Neutral').astype(int)
+
+    train_data = train_data.dropna()
+    test_data = test_data.dropna()
 
     train_data = Dataset.from_pandas(train_data)
     val_data = Dataset.from_pandas(test_data)
