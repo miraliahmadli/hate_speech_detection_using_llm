@@ -47,6 +47,7 @@ def alignment_kto_format(tokenizer, samples):
         "label": samples["label"],
     }
 
+
 def load_and_process_toxigen():
     def label_annotations(annotated):
         # Annotations should be the annotated dataset
@@ -68,9 +69,10 @@ def load_and_process_toxigen():
     
     return tg_train_data, tg_test_data
 
+
 def load_and_process_twitter_data():
     dataset = load_dataset('tweets_hate_speech_detection', name="default")
-    trainval_data = pd.DataFrame(dataset['train'])
+    trainval_data = dataset['train'].to_pandas()
     trainval_data.rename(columns={'tweet': 'text'}, inplace=True)
     trainval_data['label'] = trainval_data['label'].astype(int)
     train_data, val_data = train_test_split(trainval_data, test_size=0.2)
@@ -79,3 +81,15 @@ def load_and_process_twitter_data():
 
     return train_data, val_data
 
+
+def load_and_process_berkeley_data():
+    dataset = load_dataset("ucberkeley-dlab/measuring-hate-speech")
+    trainval_data = dataset['train'].to_pandas()
+    trainval_data = trainval_data[["text", "hate_speech_score"]]
+    trainval_data.rename(columns={'hate_speech_score': 'label'}, inplace=True)
+    trainval_data['label'] = (trainval_data['label'] > 0.5).astype(int)
+
+    train_data, val_data = train_test_split(trainval_data, test_size=0.2)
+    train_data = Dataset.from_pandas(train_data)
+    val_data = Dataset.from_pandas(val_data)
+    return train_data, val_data
