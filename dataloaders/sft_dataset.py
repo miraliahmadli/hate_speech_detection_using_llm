@@ -1,8 +1,13 @@
 import torch
 from torch.utils.data import Dataset
 
+def filter_none_text(example):
+    return example['text'] is not None
+
 class HateSpeechDataset(Dataset):
     def __init__(self, data, tokenizer, max_length=512, instruct=False):
+        # Apply the filter function to the dataset
+        data = data.filter(filter_none_text)
         self.texts = data['text']
         self.labels = data['label']
         self.tokenizer = tokenizer
@@ -22,10 +27,10 @@ class HateSpeechDataset(Dataset):
         label = self.labels[idx]
 
         # Format instruction
-        message = {"role": "user", "content": text}
-        text = self.system + self.tokenizer.apply_chat_template([message],
-                                                  tokenize=False, 
-                                                  add_generation_prompt=True)
+        # message = {"role": "user", "content": text}
+        # text = self.tokenizer.apply_chat_template([message],
+        #                                           tokenize=False, 
+        #                                           add_generation_prompt=True)
 
         encoding = self.tokenizer(
             text,
