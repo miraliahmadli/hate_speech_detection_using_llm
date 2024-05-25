@@ -4,7 +4,7 @@ import torch
 import evaluate
 metric = evaluate.load('accuracy')
 
-from trl import KTOTrainer
+from trl import SFTTrainer
 from transformers import AutoModel, AutoModelForCausalLM, AutoModelForSequenceClassification, AutoTokenizer, Trainer, TrainerCallback
 from transformers import DistilBertTokenizer, DistilBertModel
 import torch.nn as nn
@@ -13,6 +13,7 @@ from peft import PeftModel
 from datasets import Dataset
 
 from dataloaders.kto_dataset import HateSpeechKTODataset
+from dataloaders.sft_dataset import HateSpeechDataset
  
 '''
 DATASET FORMAT
@@ -95,8 +96,8 @@ peft_config = LoraConfig(
     task_type="CAUSAL_LM",
 )
 
-# initialize the DPO trainer
-kto_trainer = KTOTrainer(
+# initialize the SFT trainer
+sft_trainer = SFTTrainer(
     model,
     ref_model=None, # use model without lora adapter
     args=training_args,
@@ -114,7 +115,7 @@ def clear_memory():
 
 # Callback to clear memory at the end of each epoch
 class ClearMemoryCallback(TrainerCallback):
-    def on_step_end(self, args, state, control, **kwargs):
+    def on_log(self, args, state, control, **kwargs):
         clear_memory()
 
 def compute_metrics(eval_pred):
@@ -122,12 +123,12 @@ def compute_metrics(eval_pred):
     # predictions = np.argmax(predictions, axis=-1)
     return metric.compute(predictions=predictions, references=labels)
 
-def kto_pipeline(model_name, 
+def sft_pipeline(model_name, 
                  training_args,
                  train_set,
                  val_set,
                  peft_config,
-                 ckpt_path="./checkpoints/final_kto_checkpoint"):
+                 ckpt_path="./checkpoints/final_sft_checkpoint"):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     gc.collect()
     torch.cuda.empty_cache()
@@ -137,34 +138,40 @@ def kto_pipeline(model_name,
     model = AutoModelForCausalLM.from_pretrained(model_name)
     model.to(device)
     
-    # Create KTRO trainer
-    kto_trainer = KTOTrainer(
+    # Create datasets and dataloaders.
+    max_len = 256
+    train_set = HateSpeechDataset(train_set, tokenizer, max_len, False)
+    test_set = HateSpeechDataset(val_set, tokenizer, max_len, False)
+    
+    # Create SFT trainer
+    sft_trainer = SFTTrainer(
         model,
         args=training_args,
         train_dataset=train_set,
-        eval_dataset=val_set,
+        eval_dataset=test_set,
         tokenizer=tokenizer,
         peft_config=peft_config,
+        dataset_text_field="text",
         # compute_metrics=compute_metrics,
     )
 
     # Add the callback to the trainer
-    kto_trainer.add_callback(ClearMemoryCallback())
+    sft_trainer.add_callback(ClearMemoryCallback())
     
-    # Fine-tune model with KTO
-    kto_trainer.train()
+    # Fine-tune model with SFT
+    sft_trainer.train()
 
     # Save artifacts
-    kto_trainer.model.save_pretrained(ckpt_path)
+    sft_trainer.model.save_pretrained(ckpt_path)
     tokenizer.save_pretrained(ckpt_path)
 
     # Flush memory
-    del kto_trainer, model
+    del sft_trainer, model
     gc.collect()
     torch.cuda.empty_cache()
 
 
-def merge_and_push(model_name, kto_path, new_model_path, hf_token):
+def merge_and_push(model_name, sft_path, new_model_path, hf_token):
     # Reload model in FP16 (instead of NF4)
     base_model = AutoModelForSequenceClassification.from_pretrained(
         model_name,
@@ -174,7 +181,7 @@ def merge_and_push(model_name, kto_path, new_model_path, hf_token):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     # Merge base model with the adapter
-    model = PeftModel.from_pretrained(base_model, kto_path)
+    model = PeftModel.from_pretrained(base_model, sft_path)
     model = model.merge_and_unload()
 
     # Save model and tokenizer
