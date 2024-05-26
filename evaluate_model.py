@@ -4,6 +4,9 @@ import numpy as np
 import torch
 from datasets import concatenate_datasets
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, GPT2Config, GPT2ForSequenceClassification, Trainer, TrainingArguments
+
+from llama_index.legacy.embeddings import HuggingFaceEmbedding
+from RAG.retriever import augment_dataset, VectorDBRetriever
 from dataloaders.sft_dataset import HateSpeechDataset
 from dataloaders.common_utils import *
 import os
@@ -19,7 +22,7 @@ def compute_metrics(eval_pred):
     return metric.compute(predictions=predictions, references=labels)
 
 # Define the evaluation pipeline
-def evaluate_model(model_checkpoint_path, tokenizer_checkpoint_path, val_set):
+def evaluate_model(model_checkpoint_path, tokenizer_checkpoint_path, val_set, with_RAG=False):
     gc.collect()
     torch.cuda.empty_cache()
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -38,7 +41,10 @@ def evaluate_model(model_checkpoint_path, tokenizer_checkpoint_path, val_set):
     print("Loaded Model and Tokenizer")
     
     # Create the evaluation dataset
-    test_dataset = HateSpeechDataset(val_set, tokenizer, max_length=256)
+    max_length = 256
+    if with_RAG:
+        max_length += 1024
+    test_dataset = HateSpeechDataset(val_set, tokenizer, max_length=max_length)
     
     print("Loaded Dataset")
 
@@ -70,20 +76,26 @@ gender_train, gender_val = load_and_process_gender_hate_speech_data()
 cad_train, cad_val = load_and_process_cad()
 # train_datasets = [tg_train, tw_train, berkeley_train, gender_train, cad_train]
 val_datasets = [tg_val, tw_val, berkeley_val, gender_val, cad_val]
-# val_set = [berkeley_val]  # Load or define your validation set here
 concat_val = concatenate_datasets(val_datasets)
 val_datasets += [concat_val]
 
+with_RAG = True
+
 # Define paths
-# model_checkpoint_path = "./checkpoints/final_sft_checkpoint"  # Path to the trained model checkpoint
-model_checkpoint_path = "./checkpoints/gpt2_base/checkpoint-34000"  # Path to the trained model checkpoint
 tokenizer_checkpoint_path = "gpt2"  # Path to the tokenizer
+model_checkpoint_path = "./checkpoints/final_sft_checkpoint"
 
-model_checkpoint_path = "tomh/toxigen_hatebert"
-
-import os
-os.environ['TRANSFORMERS_CACHE'] = '/scratch/izar/ahmadli/.cache/huggingface'
+os.environ['TRANSFORMERS_CACHE'] = '/scratch/izar/chucri/.cache/huggingface'
 
 # Evaluate the model
-for data in val_datasets:
-    evaluate_model(model_checkpoint_path, tokenizer_checkpoint_path, data)
+if with_RAG:
+    embed_model = HuggingFaceEmbedding(
+        model_name="distilbert/distilbert-base-uncased"
+    )
+    retriever = VectorDBRetriever(embed_model, generate_vector_store=False)
+    for data in val_datasets:
+        augmented_val_dataset = augment_dataset(data, retriever)
+        evaluate_model(model_checkpoint_path, tokenizer_checkpoint_path, augmented_val_dataset, with_RAG)
+else:
+    for data in val_datasets:
+        evaluate_model(model_checkpoint_path, tokenizer_checkpoint_path, data, with_RAG)

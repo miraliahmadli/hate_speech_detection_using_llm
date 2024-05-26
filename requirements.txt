@@ -14,3 +14,5 @@ torch
 bitsandbytes
 peft
 trl
+llama_index
+llama-index-readers-web

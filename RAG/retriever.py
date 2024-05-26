@@ -5,12 +5,10 @@ from llama_index.core import VectorStoreIndex, ServiceContext, StorageContext, l
 from llama_index.core.schema import NodeWithScore, TextNode
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.retrievers import BaseRetriever
-from llama_index.legacy.embeddings import HuggingFaceEmbedding
 from llama_index.core import Settings
 
 from RAG.document_scraper import scrape_documents
 from dataloaders.common_utils import *
-from datasets import concatenate_datasets
 
 class VectorDBRetriever(BaseRetriever):
     def __init__(
@@ -31,7 +29,7 @@ class VectorDBRetriever(BaseRetriever):
             documents = scrape_documents()
             self.index = self.build_vector_store(documents)
         else:
-            storage_context = StorageContext.from_defaults(persist_dir="../documents")
+            storage_context = StorageContext.from_defaults(persist_dir="./documents")
             self.index = load_index_from_storage(storage_context)
 
         self.query_engine = self.index.as_retriever(
@@ -64,7 +62,7 @@ class VectorDBRetriever(BaseRetriever):
             node.embedding = node_embedding
 
         index = VectorStoreIndex(nodes, service_context=self.service_context)
-        index.storage_context.persist(persist_dir="../documents")
+        index.storage_context.persist(persist_dir="./documents")
         return index
 
     def _retrieve(self, query_str) -> List[NodeWithScore]:
@@ -74,7 +72,7 @@ class VectorDBRetriever(BaseRetriever):
     def get_added_message(self, query_str) -> str:
         query_result = self._retrieve(query_str)
 
-        start = "You are given the following context:"
+        start = "You are given the following context: "
         context = ""
         for cur_node in query_result:
             context += cur_node.get_content()
@@ -84,24 +82,9 @@ class VectorDBRetriever(BaseRetriever):
         return start + context + question + query_str
 
 
-def augment_dataset(dataset, generate_vector_store=True):
-    embed_model = HuggingFaceEmbedding(
-        model_name="distilbert/distilbert-base-uncased"
-    )
-    retriever = VectorDBRetriever(embed_model, generate_vector_store=generate_vector_store)
-
+def augment_dataset(dataset, retriever):
     dataset = dataset.to_pandas()
     dataset['text'] = dataset['text'].apply(lambda q: retriever.get_added_message(q))
     dataset = Dataset.from_pandas(dataset)
-
     return dataset
-
-
-def create_augmented_test_set(concat_test, generate_vector_store=True):
-    df = concat_test.to_pandas()
-    df.to_csv("./data/test.csv")
-
-    concat_test_RAG = augment_dataset(concat_test, generate_vector_store)
-    df_RAG = concat_test_RAG.to_pandas()
-    df_RAG.to_csv("./data/test_RAG.csv")
 
