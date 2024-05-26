@@ -5,6 +5,7 @@ import evaluate
 metric = evaluate.load('accuracy')
 
 from trl import KTOTrainer
+from trl.core import PPODecorators
 from transformers import AutoModel, AutoModelForCausalLM, AutoModelForSequenceClassification, AutoTokenizer, Trainer, TrainerCallback
 from transformers import DistilBertTokenizer, DistilBertModel
 import torch.nn as nn
@@ -13,6 +14,12 @@ from peft import PeftModel
 from datasets import Dataset
 
 from dataloaders.kto_dataset import HateSpeechKTODataset
+
+
+class CustoKTOTrainer(KTOTrainer):
+    @PPODecorators.empty_device_cache()
+    def train_step(*args, **kwargs):
+        super().train_step(*args, **kwargs) 
  
 '''
 DATASET FORMAT
@@ -95,7 +102,7 @@ peft_config = LoraConfig(
     task_type="CAUSAL_LM",
 )
 
-# initialize the DPO trainer
+# initialize the KTO trainer
 kto_trainer = KTOTrainer(
     model,
     ref_model=None, # use model without lora adapter
@@ -138,7 +145,7 @@ def kto_pipeline(model_name,
     model.to(device)
     
     # Create KTRO trainer
-    kto_trainer = KTOTrainer(
+    kto_trainer = CustoKTOTrainer(
         model,
         args=training_args,
         train_dataset=train_set,
