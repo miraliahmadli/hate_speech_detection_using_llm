@@ -25,7 +25,10 @@ def evaluate_model(model_checkpoint_path, tokenizer_checkpoint_path, val_set):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
     # Load the tokenizer and model
-    if model_checkpoint_path == "tomh/toxigen_hatebert":
+    if model_checkpoint_path == "GroNLP/hateBERT":
+        tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+        model = AutoModelForSequenceClassification.from_pretrained("GroNLP/hateBERT")
+    elif model_checkpoint_path == "tomh/toxigen_hatebert":
         tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
         model = AutoModelForSequenceClassification.from_pretrained("tomh/toxigen_hatebert")
     else:
@@ -80,6 +83,7 @@ model_checkpoint_path = "./checkpoints/gpt2_base/checkpoint-34000"  # Path to th
 tokenizer_checkpoint_path = "gpt2"  # Path to the tokenizer
 
 model_checkpoint_path = "tomh/toxigen_hatebert"
+model_checkpoint_path = "GroNLP/hateBERT"
 
 import os
 os.environ['TRANSFORMERS_CACHE'] = '/scratch/izar/ahmadli/.cache/huggingface'
