@@ -6,7 +6,7 @@ from datasets import load_dataset, Dataset
 def filter_none_text(example, key='text'):
     return example[key] is not None
 
-def load_and_process_toxigen(kto=False, test_size=0.1):
+def load_and_process_toxigen(kto=False, test_size=0.05):
     def label_annotations(annotated):
         # Annotations should be the annotated dataset
         label = ((annotated.toxicity_ai + annotated.toxicity_human) > 5.5).astype(int)
@@ -23,7 +23,7 @@ def load_and_process_toxigen(kto=False, test_size=0.1):
         tg_dataset.rename(columns={"prompt_label": "label", "generation":"completion"}, inplace=True)
         tg_dataset['label'] = tg_dataset['label'].astype(bool)
         tg_dataset = tg_dataset.sample(frac=1, random_state=42).reset_index(drop=True)
-        train_data, val_data = train_test_split(tg_dataset, test_size=test_size)
+        train_data, val_data = train_test_split(tg_dataset, test_size=test_size, random_state=42)
         train_data = Dataset.from_pandas(train_data)
         val_data = Dataset.from_pandas(val_data)
 
@@ -48,7 +48,7 @@ def load_and_process_twitter_data(test_size=0.2):
     trainval_data['label'] = trainval_data['label'].astype(int)
     trainval_data = trainval_data.dropna()
     trainval_data = trainval_data.sample(frac=1, random_state=42).reset_index(drop=True)
-    train_data, val_data = train_test_split(trainval_data, test_size=test_size)
+    train_data, val_data = train_test_split(trainval_data, test_size=test_size, random_state=42)
     train_data = Dataset.from_pandas(train_data)
     val_data = Dataset.from_pandas(val_data)
 
@@ -63,7 +63,7 @@ def load_and_process_berkeley_data(test_size=0.2):
 
     trainval_data = trainval_data.dropna()
     trainval_data = trainval_data.sample(frac=1, random_state=42).reset_index(drop=True)
-    train_data, val_data = train_test_split(trainval_data, test_size=test_size)
+    train_data, val_data = train_test_split(trainval_data, test_size=test_size, random_state=42)
     train_data = Dataset.from_pandas(train_data)
     val_data = Dataset.from_pandas(val_data)
     return train_data, val_data
