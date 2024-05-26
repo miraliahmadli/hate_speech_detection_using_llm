@@ -97,20 +97,11 @@ def augment_dataset(dataset, generate_vector_store=True):
     return dataset
 
 
-def create_augmented_test_set():
-    tg_train, tg_test = load_and_process_toxigen()
-    tw_train, tw_test = load_and_process_twitter_data()
-    berkeley_train, berkeley_test = load_and_process_berkeley_data()
-    gender_train, gender_test = load_and_process_gender_hate_speech_data()
-    cad_train, cad_test = load_and_process_cad()
-    test_datasets = [tg_test, tw_test, berkeley_test, gender_test, cad_test]
-
-    concat_test = concatenate_datasets(test_datasets)
-
+def create_augmented_test_set(concat_test, generate_vector_store=True):
     df = concat_test.to_pandas()
     df.to_csv("./data/test.csv")
 
-    concat_test_RAG = augment_dataset(concat_test)
+    concat_test_RAG = augment_dataset(concat_test, generate_vector_store)
     df_RAG = concat_test_RAG.to_pandas()
     df_RAG.to_csv("./data/test_RAG.csv")
 
