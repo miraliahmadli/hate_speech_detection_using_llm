@@ -1,4 +1,4 @@
-from trl import KTOConfig
+from trl import SFTConfig
 from peft import LoraConfig
 import os
 os.environ['WANDB_DISABLED'] = 'true'
@@ -6,7 +6,7 @@ os.environ['WANDB_DISABLED'] = 'true'
 from datasets import concatenate_datasets
 from models.model_sft import sft_pipeline
 from dataloaders.common_utils import *
-from transformers import TrainingArguments
+
 
 class Config:
     beta = 0.1 # the beta parameter for DPO loss
@@ -86,7 +86,7 @@ if __name__ == "__main__":
     OUTPUT_DIR = './checkpoints/gpt2_base/'
     CKPT = './checkpoints/finetune_model/gpt2_base/'
 
-    training_args = TrainingArguments(
+    training_args = SFTConfig(
       output_dir=OUTPUT_DIR,
       evaluation_strategy = "steps",
       num_train_epochs = EPOCHS,

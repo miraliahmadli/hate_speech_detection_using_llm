@@ -171,7 +171,7 @@ def kto_pipeline(model_name,
     torch.cuda.empty_cache()
 
 
-def merge_and_push(model_name, kto_path, new_model_path, hf_token):
+def merge_and_push(model_name, kto_path, new_model_path, hf_token=None):
     # Reload model in FP16 (instead of NF4)
     base_model = AutoModelForSequenceClassification.from_pretrained(
         model_name,
