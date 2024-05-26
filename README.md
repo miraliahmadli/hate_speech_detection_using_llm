@@ -2,32 +2,38 @@
 
 ## Project Description
 
-- For this project, we will try to use SOTA techniques to improve LLMs hate speech detection accuracy.
-- First we will fine-tune our baseline LLM for the task, then use DPO to align model according to human preferences.
-- Finally, we will use RAG to improve our model's performance even further. 
+- For this project, we use SOTA techniques to improve LLMs hate speech detection accuracy.
+- First, we fine-tune our baseline LLM for the task. Then, we use KTO to align our model according to human preferences.
+- Finally, we use RAG to try to improve our model's performance even further. 
 
 ## Codebase File Structure
 
 ```txt
 .
 ├── checkpoints
-│   ├── your_checkpoint_name
+│   ├── checkpoint_name
 │   │   ├── config.json
 │   │   |── model.safetensor
 │   │   └── ...
 ├── datasets
-│   │   ├── your_dataset_name
+│   │   ├── dataset_name
 │   │   │   └── ...
 │   │   └── ...
 ├── documents (For RAG only)
 ├── models
 │       ├── model_base.py
-│       └── model_dpo.py
-├── utils.py
-├── evaluator.py
+│       |── model_sft.py
+│       └── ...
+├── RAG
+│       ├── document_scraper.py
+│       └── retriever.py
+├── evaluate_model.py
+├── train_base.py
+├── train_kto.py
+├── train_sft.py
+├── train_sft_kto.py
 ├── main_config.yaml
 ├── requirements.txt
-├── Dockerfile
 └── README.md
 ```
 
@@ -42,28 +48,8 @@ conda activate <my-env>
 
 # Install dependencies from a `requirements.txt`
 pip install -r requirements.txt
-# If you intend to use flash-attention for more efficient training and inference
-pip install flash-attn --no-build-isolation
 ```
 
-### Setup via Docker Container
-
-```bash
-# Replace <my-docker> with the name of your docker image.
-docker build -f Dockerfile . -t <my-docker>
-docker run <my-docker>
-docker exec -it <my-docker> bash
-# Continue any bash operations ...
-
-# Replace <num-gpu> with the number of GPUs you have
-sudo docker run --gpus <num-gpu> -it -d  \
-    --name $NAME \
-    --rm --shm-size=128gb \
-    --network host \
-    -v /pure-mlo-scratch:/pure-mlo-scratch \
-    -v /home:/home meditron \
-    -- /bin/bash -c 'bash'
-```
 
 ## Codebase Introduction
 
@@ -171,21 +157,3 @@ class CustomModule(nn.Module):
 - Note: `reward` and `mcqa` cannot co-exist in the `eval_method` list at the same time.
 
 Please review the evaluation script code for detailed evaluation methods and the input and output of each evaluation function.
-
-## TODO
-
-- [ ] The dpo model file: `model_dpo.py`
-  - [ ] `forward`,
-  - [ ] `predict_step_reward`,
-  - [ ] `predict_step_mcqa`,
-  - [ ] Any code related to your `custom_module` (optional, only if you need custom modules)
-  - [ ] Any helper or utility functions required for your implementation.
-- [ ] The YAML file contains information for evaluation
-- [ ] The `checkpoints` directory with all your checkpoints in it. (Note: a group of 3 only needs to deliver either the RAG or the Quantized checkpoints in addition to the DPO checkpoint, which is required for all groups)
-  - [ ] DPO model checkpoint
-  - [ ] RAG model checkpoints
-  - [ ] Quantized model checkpoints
-  - [ ] Any support model checkpoints (if required for your implementation)
-  - [ ] All tokenizer models used by your implementation
-- [ ] `requirements.txt` includes all the dependencies required by your implementation
-- [ ] (Required for groups doing RAG) `documents` directory that contains all the documents you need to retrieve from. You can take a look at some example documents in this [Kaggle Challenge](https://www.kaggle.com/datasets/rtatman/questionanswer-dataset?resource=download).
