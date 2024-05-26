@@ -8,13 +8,13 @@ from llama_index.core.retrievers import BaseRetriever
 from llama_index.legacy.embeddings import HuggingFaceEmbedding
 from llama_index.core import Settings
 
-from dataloaders.common_utils import load_and_process_twitter_data
-from document_scraper import scrape_documents
+from RAG.document_scraper import scrape_documents
+from dataloaders.common_utils import *
+from datasets import concatenate_datasets
 
 class VectorDBRetriever(BaseRetriever):
     def __init__(
         self,
-        documents,
         embed_model,
         query_mode: str = "default",
         similarity_top_k: int = 3,
@@ -28,6 +28,7 @@ class VectorDBRetriever(BaseRetriever):
         self._similarity_top_k = similarity_top_k
 
         if generate_vector_store:
+            documents = scrape_documents()
             self.index = self.build_vector_store(documents)
         else:
             storage_context = StorageContext.from_defaults(persist_dir="../documents")
@@ -80,19 +81,36 @@ class VectorDBRetriever(BaseRetriever):
         context += '\n'
         question = "Is the following hate speech: "
 
-        return start + context + question
+        return start + context + question + query_str
 
 
-def augment_dataset(dataset):
-    documents = scrape_documents()
+def augment_dataset(dataset, generate_vector_store=True):
     embed_model = HuggingFaceEmbedding(
         model_name="distilbert/distilbert-base-uncased"
     )
-    retriever = VectorDBRetriever(documents, embed_model, generate_vector_store=True)
+    retriever = VectorDBRetriever(embed_model, generate_vector_store=generate_vector_store)
 
     dataset = dataset.to_pandas()
     dataset['text'] = dataset['text'].apply(lambda q: retriever.get_added_message(q))
     dataset = Dataset.from_pandas(dataset)
 
     return dataset
+
+
+def create_augmented_test_set():
+    tg_train, tg_test = load_and_process_toxigen()
+    tw_train, tw_test = load_and_process_twitter_data()
+    berkeley_train, berkeley_test = load_and_process_berkeley_data()
+    gender_train, gender_test = load_and_process_gender_hate_speech_data()
+    cad_train, cad_test = load_and_process_cad()
+    test_datasets = [tg_test, tw_test, berkeley_test, gender_test, cad_test]
+
+    concat_test = concatenate_datasets(test_datasets)
+
+    df = concat_test.to_pandas()
+    df.to_csv("./data/test.csv")
+
+    concat_test_RAG = augment_dataset(concat_test)
+    df_RAG = concat_test_RAG.to_pandas()
+    df_RAG.to_csv("./data/test_RAG.csv")
 

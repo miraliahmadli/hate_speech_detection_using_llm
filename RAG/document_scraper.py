@@ -14,7 +14,8 @@ def scrape_documents():
         "https://www.article19.org/resources/hate-speech-explained-a-summary/",
         "https://about.fb.com/news/2017/06/hard-questions-hate-speech/",
         "https://www.cilvektiesibugids.lv/en/themes/freedom-of-expression-media/freedom-of-expression/hate-speech/what-is-hate-speech",
-        "https://items.ssrc.org/disinformation-democracy-and-conflict-prevention/classifying-and-identifying-the-intensity-of-hate-speech/"
+        "https://items.ssrc.org/disinformation-democracy-and-conflict-prevention/classifying-and-identifying-the-intensity-of-hate-speech/",
+        "https://www.americanprogress.org/article/theres-world-difference-free-speech-hate-speech/"
     ]
 
     documents = SimpleWebPageReader(html_to_text=True).load_data(
