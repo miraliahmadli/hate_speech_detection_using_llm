@@ -1,10 +1,9 @@
 from trl import SFTConfig
-from peft import LoraConfig
 import os
 os.environ['WANDB_DISABLED'] = 'true'
 
 from datasets import concatenate_datasets
-from models.model_sft import sft_pipeline
+from models.model_gpt import sft_pipeline
 from dataloaders.common_utils import *
 
 
@@ -99,23 +98,6 @@ if __name__ == "__main__":
       report_to="tensorboard",
       logging_dir="./tensorboard/sft_gpt2",)
 
-    peft_config = LoraConfig(
-        r=Config.lora_r,
-        lora_alpha=Config.lora_alpha,
-        lora_dropout=Config.lora_dropout,
-        target_modules=[
-            "q_proj",
-            "v_proj",
-            "k_proj",
-            "out_proj",
-            "fc_in",
-            "fc_out",
-            "wte",
-        ],
-        bias="none",
-        task_type="CAUSAL_LM",
-    )
-    
     MODEL_NAME = 'gpt2' # only accepts models with decoders
     
     # train = train.map(
@@ -146,5 +128,4 @@ if __name__ == "__main__":
                 training_args,
                 concat_train,
                 concat_val,
-                peft_config=peft_config,
                 ckpt_path="./checkpoints/final_sft_checkpoint")
