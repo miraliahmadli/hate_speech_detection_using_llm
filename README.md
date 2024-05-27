@@ -64,4 +64,4 @@ pip install -r requirements.txt
 - `train_base.py` can be used to fine tune models on variety of available Language Models. We used it for fine-tuning some BERT based models.
 
 ## Evaluate Models
-- `evaluate_model.py`: update the path to model checkpoint, specify datasets you want to evaluate and run the python script.
+- `evaluate_model.py`: update the path to model checkpoint, specify datasets you want to evaluate and run the python script. To enable/disable RAG, just update the with_RAG boolean.
