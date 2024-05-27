@@ -63,5 +63,8 @@ pip install -r requirements.txt
   - If you used LoRA for KTO, consider merging using `merge_and_push` method provided in `models/model_kto.py` file to merge LoRA matrices to model. 
 - `train_base.py` can be used to fine tune models on variety of available Language Models. We used it for fine-tuning some BERT based models.
 
+## CHECKPOINTS
+Download checkpoints from the [link](https://drive.google.com/file/d/1hUVbMQif-grBlAR54Yew4CUXY8x_Hlzn/view?usp=sharing)
+
 ## Evaluate Models
 - `evaluate_model.py`: update the path to model checkpoint, specify datasets you want to evaluate and run the python script. To enable/disable RAG, just update the with_RAG boolean.
