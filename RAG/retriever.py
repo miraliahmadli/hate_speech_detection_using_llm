@@ -15,7 +15,7 @@ class VectorDBRetriever(BaseRetriever):
         self,
         embed_model,
         query_mode: str = "default",
-        similarity_top_k: int = 3,
+        similarity_top_k: int = 1,
         generate_vector_store: bool = True,
     ):
         self._embed_model = embed_model
