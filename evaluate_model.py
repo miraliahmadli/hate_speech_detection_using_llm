@@ -52,8 +52,11 @@ def evaluate_model(model_checkpoint_path, tokenizer_checkpoint_path, val_set, wi
     print("Loaded Dataset")
 
     # Define evaluation arguments
+    cur_batch_size = 16
+    if with_RAG:
+        cur_batch_size = 8
     eval_args = TrainingArguments(
-        per_device_eval_batch_size=16,  # Adjust as needed
+        per_device_eval_batch_size=cur_batch_size,  # Adjust as needed
         dataloader_drop_last=False,
         output_dir="./results/eval_results/gpt2_base/test/",  # Adjust as needed
     )
